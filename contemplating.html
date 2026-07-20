@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solvation</title>
+    <link rel="icon" type="image/png" href="IPC.png">
+    <style>
+        :root {
+            /* CLEAN MILK-CREAM PALETTE */
+            --aventurine-cream: #faf3e0;       
+            --aventurine-light-cream: #fffaf0; 
+            --aventurine-gold-glow: #ebd8b0;   
+            --dark-tosca-text: #11343a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Courier New', monospace;
+        }
+
+        /* --- BACKGROUND CANVAS --- */
+        body {
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #0c1c38;
+            background-image: 
+                linear-gradient(to right, rgba(250, 243, 224, 0.12) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(250, 243, 224, 0.12) 1px, transparent 1px),
+                radial-gradient(circle at center, #1b3561 0%, #0c1c38 70%, #060e1d 100%);
+            background-size: 36px 36px, 36px 36px, 100% 100%;
+            overflow: hidden;
+            padding: 2vh 2vw;
+            position: relative;
+        }
+
+        /* --- MAIN UI FRAME --- */
+        .card-container {
+            width: 96vw;
+            height: 94vh;
+            background: var(--aventurine-cream);
+            border-radius: 28px;
+            padding: 12px 18px 16px 18px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+            user-select: none;
+            z-index: 10;
+        }
+
+        /* --- LIVE IPAD STATUS BAR --- */
+        .ipad-status-bar {
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            color: var(--dark-tosca-text);
+            font-size: 0.82rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            z-index: 60;
+        }
+
+        .status-left, .status-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- VIEWPORT GRADIENT --- */
+        .art-viewport {
+            width: 100%;
+            flex-grow: 1;
+            margin: 4px 0 8px 0;
+            border-radius: 20px;
+            position: relative;
+            overflow: visible; 
+            background: linear-gradient(135deg, #247585 0%, #3a97a5 35%, #7e539b 70%, #be8763 100%);
+            border: 1px solid rgba(255, 250, 240, 0.45);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 28px 24px;
+        }
+
+        /* --- TOP & BOTTOM INNER WHITE BLUR OVERLAYS --- */
+        .viewport-blur-top,
+        .viewport-blur-bottom {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 48px;
+            pointer-events: none;
+            z-index: 3;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .viewport-blur-top {
+            top: 0;
+            border-top-left-radius: 19px;
+            border-top-right-radius: 19px;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 100%);
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+            -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+        }
+
+        .viewport-blur-bottom {
+            bottom: 0;
+            border-bottom-left-radius: 19px;
+            border-bottom-right-radius: 19px;
+            background: linear-gradient(to top, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 100%);
+            mask-image: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+            -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+        }
+
+        .bg-layer-1 {
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            background: 
+                radial-gradient(circle at 80% 25%, rgba(250, 243, 224, 0.35) 0%, transparent 45%),
+                radial-gradient(circle at 20% 75%, rgba(58, 151, 165, 0.55) 0%, transparent 55%),
+                radial-gradient(circle at 50% 50%, rgba(126, 83, 155, 0.35) 0%, transparent 60%);
+            filter: blur(18px);
+            z-index: 1;
+        }
+
+        /* Cream Grid Overlay */
+        .hud-grid {
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            opacity: 0.22;
+            background-image: 
+                radial-gradient(circle, var(--aventurine-light-cream) 1.5px, transparent 1.5px),
+                linear-gradient(to right, var(--aventurine-light-cream) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--aventurine-light-cream) 1px, transparent 1px);
+            background-size: 24px 24px, 48px 48px, 48px 48px;
+            z-index: 2;
+        }
+
+        /* --- SOFT BORDERLESS FADING BACKGROUND SHAPES --- */
+        .graphic-shape-circle {
+            position: absolute;
+            top: -40px;
+            left: -40px;
+            width: 440px;
+            height: 440px;
+            border: none;
+            background: radial-gradient(circle, rgba(255, 250, 240, 0.28) 0%, rgba(255, 250, 240, 0.08) 60%, transparent 80%);
+            border-radius: 50%;
+            animation: slowFloat1 25s ease-in-out infinite alternate;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .graphic-shape-square {
+            position: absolute;
+            bottom: -20px;
+            right: -20px;
+            width: 340px;
+            height: 340px;
+            border: none;
+            background: radial-gradient(circle, rgba(255, 250, 240, 0.25) 0%, rgba(255, 250, 240, 0.05) 70%, transparent 90%);
+            border-radius: 40px;
+            animation: slowRotateSquare 40s linear infinite;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .graphic-shape-svg {
+            position: absolute;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .shape-triangle-svg {
+            top: 10%;
+            left: 22%;
+            width: 180px;
+            height: 180px;
+            animation: floatMove1 22s ease-in-out infinite alternate;
+        }
+
+        .shape-diamond-svg {
+            top: 18%;
+            right: 22%;
+            width: 160px;
+            height: 160px;
+            animation: floatMove3 30s ease-in-out infinite alternate;
+        }
+
+        .graphic-shape-large-box {
+            position: absolute;
+            bottom: 10%;
+            left: 30%;
+            width: 220px;
+            height: 220px;
+            border: none;
+            background: radial-gradient(circle, rgba(255, 250, 240, 0.25) 0%, rgba(255, 250, 240, 0.03) 80%);
+            border-radius: 36px;
+            animation: floatMove2 28s ease-in-out infinite alternate;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .graphic-shape-ring {
+            position: absolute;
+            bottom: 22%;
+            left: 8%;
+            width: 140px;
+            height: 140px;
+            border: none;
+            background: radial-gradient(circle, rgba(235, 216, 176, 0.35) 0%, rgba(255, 250, 240, 0.05) 75%, transparent 100%);
+            border-radius: 50%;
+            animation: slowRotateSquare 18s linear infinite reverse;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .graphic-shape-rhombus {
+            position: absolute;
+            top: 45%;
+            left: 42%;
+            width: 220px;
+            height: 110px;
+            border: none;
+            background: linear-gradient(135deg, rgba(255, 250, 240, 0.25) 0%, rgba(255, 250, 240, 0.02) 100%);
+            transform: skew(-20deg);
+            border-radius: 20px;
+            animation: floatMove1 24s ease-in-out infinite alternate-reverse;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        @keyframes slowFloat1 {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(40px, 25px) rotate(15deg); }
+        }
+
+        @keyframes floatMove1 {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(-40px, 30px) rotate(-12deg); }
+        }
+
+        @keyframes floatMove2 {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(35px, -35px) rotate(20deg); }
+        }
+
+        @keyframes floatMove3 {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(-35px, 40px) rotate(25deg); }
+        }
+
+        @keyframes slowRotateSquare {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* --- DEBRIS FIELD --- */
+        .debris-field {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        .debris {
+            position: absolute;
+            background: var(--aventurine-light-cream);
+            border-radius: 50%;
+            opacity: 0.5;
+            animation: floatDebris linear infinite;
+        }
+
+        .debris.star {
+            border-radius: 0;
+            background: transparent;
+            color: var(--aventurine-light-cream);
+            font-size: 16px;
+            opacity: 0.7;
+        }
+
+        .debris.square {
+            border-radius: 2px;
+            opacity: 0.55;
+        }
+
+        @keyframes floatDebris {
+            0% {
+                transform: translateY(105%) translateX(0) rotate(0deg);
+                opacity: 0;
+            }
+            20% { opacity: 0.6; }
+            80% { opacity: 0.6; }
+            100% {
+                transform: translateY(-10%) translateX(40px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Scanlines Overlay */
+        .scanlines {
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0, 0, 0, 0.12) 50%,
+                rgba(0, 0, 0, 0.12)
+            );
+            background-size: 100% 6px;
+            pointer-events: none;
+            opacity: 0.12;
+            z-index: 4;
+        }
+
+        /* --- INTERACTIVE AVENTURINE LAYER --- */
+        .aven-image-overlay {
+            position: absolute;
+            bottom: -40%;
+            left: 53%;
+            transform: translateX(-40%);
+            height: 150%;
+            width: auto;
+            max-width: 100vw;
+            object-fit: contain;
+            z-index: 30;
+            cursor: pointer;
+            filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.4));
+            transition: filter 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .aven-image-overlay:hover {
+            filter: drop-shadow(0 0 20px rgba(130, 240, 255, 0.3))
+                    drop-shadow(0 0 40px rgba(250, 225, 160, 0.36));
+        }
+
+        /* --- GLASS CARDS --- */
+        .liquid-glass {
+            background: rgba(255, 250, 240, 0.22);
+            backdrop-filter: blur(16px) saturate(135%);
+            -webkit-backdrop-filter: blur(16px) saturate(135%);
+            border: 1px solid rgba(255, 250, 240, 0.5);
+            border-radius: 20px;
+            
+            background-image: 
+                linear-gradient(to right, rgba(255, 250, 240, 0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 250, 240, 0.1) 1px, transparent 1px);
+            background-size: 12px 12px;
+
+            box-shadow: 0 8px 28px 0 rgba(10, 35, 45, 0.25), 
+                        inset 0 1px 2px rgba(255, 255, 255, 0.75);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* APP SIDE PANELS */
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 16px;
+            z-index: 50;
+            width: 200px;
+            height: calc(100% - 30px);
+            margin-top: 25px;
+            position: relative;
+        }
+
+        .app-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            padding: 16px 12px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .app-card .app-icon {
+            width: 52px;
+            height: 52px;
+            background: var(--aventurine-light-cream);
+            border-radius: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 5px 12px rgba(0,0,0,0.2);
+            margin-bottom: 8px;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+            overflow: hidden;
+            padding: 8px;
+        }
+
+        .app-card .app-icon img, .app-card .app-icon svg {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+
+        .app-card .app-label {
+            color: #ffffff;
+            font-size: 0.78rem;
+            letter-spacing: 0.6px;
+            text-shadow: 0 1px 5px rgba(10, 35, 45, 0.85);
+            font-weight: 700;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        /* ENHANCED APP CARD HOVER STATE */
+        .app-card:hover {
+            transform: translateY(-8px) scale(1.05);
+            background-color: rgba(137, 255, 245, 0.7);
+            border-color: rgba(254, 255, 255, 0.95);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4),
+                        0 0 25px rgba(235, 216, 176, 0.6),
+                        inset 0 1px 4px rgb(255, 255, 255);
+        }
+
+        .app-card:hover .app-icon {
+            transform: scale(1.15) rotate(-3deg);
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3),
+                        0 0 18px rgba(255, 255, 255, 0.8);
+        }
+
+        .app-card:hover .app-icon img, 
+        .app-card:hover .app-icon svg {
+            transform: scale(1.08);
+        }
+
+        .app-card:hover .app-label {
+            color: #fffaf0;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.9),
+                         0 2px 8px rgba(0, 0, 0, 0.9);
+            letter-spacing: 1px;
+        }
+
+        /* --- BOTTOM DOCK --- */
+        .dock-container {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+        }
+
+        .mac-dock {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 10px 22px;
+            border-radius: 24px;
+        }
+
+        .dock-app {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .dock-app .app-icon {
+            width: 46px;
+            height: 46px;
+            background: var(--aventurine-light-cream);
+            border-radius: 13px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 5px 12px rgba(0,0,0,0.22);
+            padding: 7px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .dock-app .app-icon img, .dock-app .app-icon svg {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+
+        /* ENHANCED DOCK APP HOVER STATE */
+        .dock-app:hover {
+            transform: translateY(-14px) scale(1.22);
+        }
+
+        .dock-app:hover .app-icon {
+            background: #ffffff;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35),
+                        0 0 20px rgba(130, 240, 255, 0.7);
+        }
+
+        .dock-app:hover .app-icon img,
+        .dock-app:hover .app-icon svg {
+            transform: scale(1.12);
+        }
+
+        /* CORNER BADGES */
+        .art-badge {
+            position: absolute;
+            color: var(--aventurine-light-cream);
+            font-size: 0.7rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            background: rgba(17, 52, 58, 0.6);
+            backdrop-filter: blur(8px);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 250, 240, 0.38);
+            z-index: 50;
+            font-family: 'Courier New', monospace;
+        }
+
+        .badge-tl { top: 16px; left: 16px; }
+        .badge-tr { top: 16px; right: 16px; }
+
+        /* BOTTOM TICKER BANNER */
+        .bottom-bar {
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            color: var(--dark-tosca-text);
+            font-weight: 900;
+            font-size: 0.85rem;
+            letter-spacing: 1.5px;
+            font-family: 'Courier New', monospace;
+            z-index: 60;
+        }
+
+        .checkered-box {
+            width: 22px;
+            height: 10px;
+            display: inline-block;
+            background-image: linear-gradient(45deg, #11343a 25%, transparent 25%), 
+                              linear-gradient(-45deg, #11343a 25%, transparent 25%), 
+                              linear-gradient(45deg, transparent 75%, #11343a 75%), 
+                              linear-gradient(-45deg, transparent 75%, #11343a 75%);
+            background-size: 4px 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- MAIN UI CARD -->
+    <div class="card-container">
+        
+        <!-- LIVE IPAD STATUS BAR -->
+        <div class="ipad-status-bar">
+            <div class="status-left">
+                <span id="live-clock">9:41 AM</span>
+                <span id="live-date" style="font-size: 0.75rem; opacity: 0.8;">Mon, Jul 20</span>
+            </div>
+            <div class="status-right">
+                <!-- WiFi Icon -->
+                <svg width="17" height="13" viewBox="0 0 24 18" fill="currentColor">
+                    <path d="M12 18a2.5 2.5 0 100-5 2.5 2.5 0 000 5zm-6.364-6.364a9 9 0 0112.728 0l-2.122 2.122a6 6 0 00-8.484 0l-2.122-2.122zm-4.243-4.243a15 15 0 0121.214 0l-2.122 2.122a12 12 0 00-16.97 0l-2.122-2.122z"/>
+                </svg>
+
+                <!-- Standalone Battery Bar Icon -->
+                <svg width="24" height="13" viewBox="0 0 24 12" fill="none">
+                    <rect x="1" y="1" width="18" height="10" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
+                    <rect x="3.5" y="3.5" width="10" height="5" rx="1" fill="currentColor"/>
+                    <path d="M21 4.5v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- VIEWPORT -->
+        <div class="art-viewport">
+            <!-- TOP & BOTTOM INNER WHITE BLUR EFFECTS -->
+            <div class="viewport-blur-top"></div>
+            <div class="viewport-blur-bottom"></div>
+
+            <div class="bg-layer-1"></div>
+            <div class="hud-grid"></div>
+            
+            <!-- BORDERLESS FADING SHAPES -->
+            <div class="graphic-shape-circle"></div>
+            <div class="graphic-shape-square"></div>
+            
+            <!-- SVG Triangle -->
+            <svg class="graphic-shape-svg shape-triangle-svg" viewBox="0 0 100 100">
+                <defs>
+                    <radialGradient id="triGrad" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="rgba(255, 250, 240, 0.35)"/>
+                        <stop offset="100%" stop-color="rgba(255, 250, 240, 0.0)"/>
+                    </radialGradient>
+                </defs>
+                <polygon points="50,5 95,95 5,95" fill="url(#triGrad)"/>
+            </svg>
+
+            <!-- SVG Diamond -->
+            <svg class="graphic-shape-svg shape-diamond-svg" viewBox="0 0 100 100">
+                <defs>
+                    <radialGradient id="diaGrad" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="rgba(255, 250, 240, 0.3)"/>
+                        <stop offset="100%" stop-color="rgba(255, 250, 240, 0.0)"/>
+                    </radialGradient>
+                </defs>
+                <polygon points="50,5 95,50 50,95 5,50" fill="url(#diaGrad)"/>
+            </svg>
+
+            <div class="graphic-shape-large-box"></div>
+            <div class="graphic-shape-ring"></div>
+            <div class="graphic-shape-rhombus"></div>
+
+            <!-- SUBTLE MOVING DEBRIS FIELD -->
+            <div class="debris-field">
+                <div class="debris" style="left: 10%; width: 6px; height: 6px; animation-duration: 20s; animation-delay: 0s;"></div>
+                <div class="debris square" style="left: 22%; width: 5px; height: 5px; animation-duration: 26s; animation-delay: 3s;"></div>
+                <div class="debris star" style="left: 32%; animation-duration: 22s; animation-delay: 1s;">✦</div>
+                <div class="debris" style="left: 42%; width: 5px; height: 5px; animation-duration: 28s; animation-delay: 7s;"></div>
+                <div class="debris star" style="left: 64%; animation-duration: 24s; animation-delay: 2s;">✧</div>
+                <div class="debris square" style="left: 74%; width: 6px; height: 6px; animation-duration: 25s; animation-delay: 5s;"></div>
+                <div class="debris" style="left: 86%; width: 5px; height: 5px; animation-duration: 21s; animation-delay: 4s;"></div>
+            </div>
+
+            <!-- SCANLINES OVERLAY -->
+            <div class="scanlines"></div>
+
+            <!-- CLICKABLE AVENTURINE IMAGE WITH NEON SHADOW HOVER -->
+            <a href="https://honkai-star-rail.fandom.com/wiki/Aventurine_%E2%80%A2_Waveflair" target="_blank" style="display: contents;">
+                <img src="aventurine.png" class="aven-image-overlay" alt="Aventurine - Waveflair" title="View Aventurine • Waveflair Wiki">
+            </a>
+
+            <!-- LEFT APP PANEL -->
+            <div class="side-panel">
+                <a href="https://ptn.pintarly.id/home" target="_blank" class="app-card liquid-glass">
+                    <div class="app-icon">
+                        <img src="https://ptn.pintarly.id/favicon.ico" alt="Pintarly" onerror="this.src='https://api.iconify.design/lucide:graduation-cap.svg?color=%2311343a'">
+                    </div>
+                    <div class="app-label">Pintarly</div>
+                </a>
+                <a href="https://web.analitica.id/activities" target="_blank" class="app-card liquid-glass">
+                    <div class="app-icon">
+                        <img src="https://web.analitica.id/favicon.ico" alt="Analitica" onerror="this.src='https://api.iconify.design/lucide:bar-chart-2.svg?color=%2311343a'">
+                    </div>
+                    <div class="app-label">Analitica</div>
+                </a>
+                <a href="https://sainsin.com/dashboard" target="_blank" class="app-card liquid-glass">
+                    <div class="app-icon">
+                        <img src="https://sainsin.com/favicon.ico" alt="Sainsin" onerror="this.src='https://api.iconify.design/lucide:flask-conical.svg?color=%2311343a'">
+                    </div>
+                    <div class="app-label">Sainsin</div>
+                </a>
+            </div>
+
+            <!-- RIGHT APP PANEL -->
+            <div class="side-panel">
+                <a href="https://tryout.pahamify.com/home" target="_blank" class="app-card liquid-glass">
+                    <div class="app-icon">
+                        <img src="https://pahamify.com/favicon.ico" alt="Pahamify" onerror="this.src='https://api.iconify.design/lucide:rocket.svg?color=%2311343a'">
+                    </div>
+                    <div class="app-label">Pahamify</div>
+                </a>
+                <a href="https://www.khanacademy.org/profile/me/courses" target="_blank" class="app-card liquid-glass">
+                    <div class="app-icon">
+                        <img src="https://www.khanacademy.org/favicon.ico" alt="Khan Academy" onerror="this.src='https://api.iconify.design/lucide:sprout.svg?color=%2311343a'">
+                    </div>
+                    <div class="app-label">Khan Academy</div>
+                </a>
+                <a href="https://chemquiz.net/quizzes/" target="_blank" class="app-card liquid-glass">
+                    <div class="app-icon">
+                        <img src="https://chemquiz.net/favicon.ico" alt="ChemQuiz" onerror="this.src='https://api.iconify.design/lucide:test-tube-2.svg?color=%2311343a'">
+                    </div>
+                    <div class="app-label">ChemQuiz.net</div>
+                </a>
+            </div>
+
+            <!-- BOTTOM DOCK -->
+            <div class="dock-container">
+                <div class="mac-dock liquid-glass">
+                    <a href="https://claude.ai" target="_blank" class="dock-app" title="Claude AI">
+                        <div class="app-icon">
+                            <img src="https://api.iconify.design/logos:claude-icon.svg" alt="Claude">
+                        </div>
+                    </a>
+                    <a href="https://chat.deepseek.com" target="_blank" class="dock-app" title="DeepSeek">
+                        <div class="app-icon">
+                            <img src="https://chat.deepseek.com/favicon.ico" alt="DeepSeek" onerror="this.src='https://api.iconify.design/lucide:bot.svg?color=%2311343a'">
+                        </div>
+                    </a>
+                    <a href="https://chatgpt.com" target="_blank" class="dock-app" title="ChatGPT">
+                        <div class="app-icon">
+                            <img src="https://api.iconify.design/simple-icons:openai.svg?color=%2310a37f" alt="ChatGPT">
+                        </div>
+                    </a>
+                    <a href="https://gemini.google.com" target="_blank" class="dock-app" title="Google Gemini">
+                        <div class="app-icon">
+                            <img src="https://api.iconify.design/logos:google-gemini.svg" alt="Gemini">
+                        </div>
+                    </a>
+                    <a href="https://www.perplexity.ai" target="_blank" class="dock-app" title="Web Portal">
+                        <div class="app-icon">
+                            <img src="logo.png" alt="Portal" onerror="this.src='https://api.iconify.design/lucide:globe.svg?color=%2300bba7'">
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- CORNER BADGES -->
+            <div class="art-badge badge-tl">Aventurine of Stratagems</div>
+            <div class="art-badge badge-tr">Ten Stonehearts</div>
+        </div>
+
+        <!-- BOTTOM TICKER BANNER -->
+        <div class="bottom-bar">
+            <div>Interastral_Peace_Corporation</div>
+            <div style="display: flex; align-items: center; gap: 0px;">
+                <div>‎</div>
+            
+            <div>Quantum // Elation</div>
+        </div>
+    </div>
+
+    <!-- SCRIPT FOR DYNAMIC TIME & DATE -->
+    <script>
+        function updateStatusBar() {
+            const now = new Date();
+            
+            let hours = now.getHours();
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; 
+            document.getElementById('live-clock').textContent = `${hours}:${minutes} ${ampm}`;
+
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            document.getElementById('live-date').textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
+        }
+
+        updateStatusBar();
+        setInterval(updateStatusBar, 1000);
+    </script>
+</body>
+</html>
